@@ -1,70 +1,88 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html>
+
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Járműkövetés</title>
   <style>
-    html, body, #map {
+    html,
+    body {
       height: 100%;
       margin: 0;
       padding: 0;
     }
+
+    #map {
+      height: 100%;
+    }
+
     .popup {
       display: flex;
       flex-direction: column;
       gap: 5px;
     }
-    input, select, button {
+
+    input,
+    select,
+    textarea,
+    button {
       padding: 5px;
       font-size: 1rem;
     }
+
     button {
-      background-color: #007bff;
+      background: #007bff;
       color: white;
       border: none;
       cursor: pointer;
     }
   </style>
 </head>
+
 <body>
   <div id="map"></div>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7cskYcCSi1Qwne3NZ-yN8MD0RI6WwXWQ"></script>
-  <script>
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const supabaseUrl = "https://qjksbecjfhrqgjgurlqv.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqa3NiZWNqZmhycWdqZ3VybHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MDgwNzAsImV4cCI6MjA3MzA4NDA3MH0.f2AqfGIlQ_TiNE6siQeTIVvX0HE4boBtLoZL7qoqfZs";
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     let map;
-    let markers = [];
-    let selectedMarker = null;
+    let infowindow = new google.maps.InfoWindow();
 
     async function fetchVehicles() {
-      const res = await fetch('get_vehicles.php');
-      return await res.json();
+      const { data, error } = await supabase.from('vehicles').select('*');
+      if (error) console.error(error);
+      return data || [];
     }
 
     async function saveVehicle(vehicle) {
-      const res = await fetch('save_vehicle.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(vehicle)
-      });
-      return await res.json();
+      const { data, error } = await supabase.from('vehicles').upsert(vehicle).select();
+      if (error) console.error(error);
+      return data[0];
     }
 
     function createPopupContent(vehicle, marker) {
       const div = document.createElement('div');
-      div.className = "popup";
+      div.className = 'popup';
       div.innerHTML = `
         <input id="name" value="${vehicle.name || ''}" placeholder="Jármű neve">
         <select id="status">
           <option ${vehicle.status === 'Új' ? 'selected' : ''}>Új</option>
-          <option ${vehicle.status === 'Szervizben' ? 'selected' : ''}>Szervizben</option>
           <option ${vehicle.status === 'Használatban' ? 'selected' : ''}>Használatban</option>
+          <option ${vehicle.status === 'Szervizben' ? 'selected' : ''}>Szervizben</option>
         </select>
+        <textarea id="notes" placeholder="Megjegyzés">${vehicle.notes || ''}</textarea>
         <button>Mentés</button>
       `;
       div.querySelector('button').onclick = async () => {
         vehicle.name = div.querySelector('#name').value;
         vehicle.status = div.querySelector('#status').value;
+        vehicle.notes = div.querySelector('#notes').value;
         const saved = await saveVehicle(vehicle);
         marker.vehicle = saved;
         infowindow.close();
@@ -72,11 +90,9 @@
       return div;
     }
 
-    let infowindow = new google.maps.InfoWindow();
-
     async function initMap() {
-      map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 47.4979, lng: 19.0402 },
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 46.5833, lng: 25.8000 }, // Gyergyószentmiklós
         zoom: 12
       });
 
@@ -85,40 +101,38 @@
       vehicles.forEach(v => {
         const marker = new google.maps.Marker({
           position: { lat: parseFloat(v.lat), lng: parseFloat(v.lng) },
-          map,
+          map
         });
         marker.vehicle = v;
         marker.addListener('click', () => {
-          selectedMarker = marker;
           infowindow.setContent(createPopupContent(v, marker));
           infowindow.open(map, marker);
         });
-        markers.push(marker);
       });
 
+      // Kattintás a térképen: új jármű hozzáadása
       map.addListener("click", async (e) => {
         const newVehicle = {
-          name: "Új jármű",
+          name: 'Új jármű',
           lat: e.latLng.lat(),
           lng: e.latLng.lng(),
-          status: "Új"
+          status: 'Új'
         };
         const saved = await saveVehicle(newVehicle);
         const marker = new google.maps.Marker({
           position: { lat: saved.lat, lng: saved.lng },
-          map,
+          map
         });
         marker.vehicle = saved;
         marker.addListener('click', () => {
-          selectedMarker = marker;
           infowindow.setContent(createPopupContent(saved, marker));
           infowindow.open(map, marker);
         });
-        markers.push(marker);
       });
     }
 
     window.onload = initMap;
   </script>
 </body>
+
 </html>
