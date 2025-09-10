@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Járműkövetés</title>
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .popup {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    input, select, button {
+      padding: 5px;
+      font-size: 1rem;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7cskYcCSi1Qwne3NZ-yN8MD0RI6WwXWQ"></script>
+  <script>
+    let map;
+    let markers = [];
+    let selectedMarker = null;
+
+    async function fetchVehicles() {
+      const res = await fetch('get_vehicles.php');
+      return await res.json();
+    }
+
+    async function saveVehicle(vehicle) {
+      const res = await fetch('save_vehicle.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(vehicle)
+      });
+      return await res.json();
+    }
+
+    function createPopupContent(vehicle, marker) {
+      const div = document.createElement('div');
+      div.className = "popup";
+      div.innerHTML = `
+        <input id="name" value="${vehicle.name || ''}" placeholder="Jármű neve">
+        <select id="status">
+          <option ${vehicle.status === 'Új' ? 'selected' : ''}>Új</option>
+          <option ${vehicle.status === 'Szervizben' ? 'selected' : ''}>Szervizben</option>
+          <option ${vehicle.status === 'Használatban' ? 'selected' : ''}>Használatban</option>
+        </select>
+        <button>Mentés</button>
+      `;
+      div.querySelector('button').onclick = async () => {
+        vehicle.name = div.querySelector('#name').value;
+        vehicle.status = div.querySelector('#status').value;
+        const saved = await saveVehicle(vehicle);
+        marker.vehicle = saved;
+        infowindow.close();
+      };
+      return div;
+    }
+
+    let infowindow = new google.maps.InfoWindow();
+
+    async function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 47.4979, lng: 19.0402 },
+        zoom: 12
+      });
+
+      const vehicles = await fetchVehicles();
+
+      vehicles.forEach(v => {
+        const marker = new google.maps.Marker({
+          position: { lat: parseFloat(v.lat), lng: parseFloat(v.lng) },
+          map,
+        });
+        marker.vehicle = v;
+        marker.addListener('click', () => {
+          selectedMarker = marker;
+          infowindow.setContent(createPopupContent(v, marker));
+          infowindow.open(map, marker);
+        });
+        markers.push(marker);
+      });
+
+      map.addListener("click", async (e) => {
+        const newVehicle = {
+          name: "Új jármű",
+          lat: e.latLng.lat(),
+          lng: e.latLng.lng(),
+          status: "Új"
+        };
+        const saved = await saveVehicle(newVehicle);
+        const marker = new google.maps.Marker({
+          position: { lat: saved.lat, lng: saved.lng },
+          map,
+        });
+        marker.vehicle = saved;
+        marker.addListener('click', () => {
+          selectedMarker = marker;
+          infowindow.setContent(createPopupContent(saved, marker));
+          infowindow.open(map, marker);
+        });
+        markers.push(marker);
+      });
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>
