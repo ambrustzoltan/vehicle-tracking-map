@@ -42,7 +42,6 @@
       background: #dc3545;
     }
 
-    /* --- Bal felső járműlista panel --- */
     .vehicle-panel {
       position: absolute;
       top: 10px;
@@ -93,7 +92,6 @@
 <body>
   <div id="map"></div>
 
-  <!-- Járműlista panel -->
   <div class="vehicle-panel">
     <div class="vehicle-header"> Járművek ▼</div>
     <div class="vehicle-list" id="vehicle-list"></div>
@@ -246,7 +244,6 @@
       });
     }
 
-    // Panel lenyitás/összecsukás
     document.querySelector('.vehicle-header').addEventListener('click', () => {
       const list = document.querySelector('.vehicle-list');
       list.style.display = list.style.display === 'block' ? 'none' : 'block';
