@@ -37,6 +37,10 @@
       border: none;
       cursor: pointer;
     }
+
+    button.delete {
+      background: #dc3545;
+    }
   </style>
 </head>
 
@@ -66,6 +70,18 @@
       return data[0];
     }
 
+    async function deleteVehicle(id) {
+      const { error } = await supabase.from('vehicles').delete().eq('id', id);
+      if (error) console.error(error);
+    }
+
+    function getMarkerIcon(status) {
+      if (status === 'Áll') {
+        return "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Stop_sign.svg/240px-Stop_sign.svg.png";
+      }
+      return null; // default Google marker
+    }
+
     function createPopupContent(vehicle, marker) {
       const div = document.createElement('div');
       div.className = 'popup';
@@ -75,28 +91,42 @@
           <option ${vehicle.status === 'Új' ? 'selected' : ''}>Új</option>
           <option ${vehicle.status === 'Használatban' ? 'selected' : ''}>Használatban</option>
           <option ${vehicle.status === 'Szervizben' ? 'selected' : ''}>Szervizben</option>
+          <option ${vehicle.status === 'Áll' ? 'selected' : ''}>Áll</option>
         </select>
         <textarea id="notes" placeholder="Megjegyzés">${vehicle.notes || ''}</textarea>
         <button>Mentés</button>
+        <button class="delete">Törlés</button>
       `;
+
+      // Mentés gomb
       div.querySelector('button').onclick = async () => {
         vehicle.name = div.querySelector('#name').value;
         vehicle.status = div.querySelector('#status').value;
         vehicle.notes = div.querySelector('#notes').value;
         const saved = await saveVehicle(vehicle);
         marker.vehicle = saved;
+        marker.setIcon(getMarkerIcon(saved.status));
         infowindow.close();
       };
+
+      // Törlés gomb
+      div.querySelector('.delete').onclick = async () => {
+        if (confirm("Biztosan törlöd a járművet?")) {
+          await deleteVehicle(vehicle.id);
+          marker.setMap(null);
+          infowindow.close();
+        }
+      };
+
       return div;
     }
 
     async function initMap() {
       map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 46.72292, lng: 25.60055 }, // Gheorgheni
+        center: { lat: 46.72292, lng: 25.60055 },
         zoom: 12,
         mapTypeControl: false,
         zoomControl: false,
-        // streetViewControl: false, 
         fullscreenControl: false
       });
 
@@ -105,7 +135,8 @@
       vehicles.forEach(v => {
         const marker = new google.maps.Marker({
           position: { lat: parseFloat(v.lat), lng: parseFloat(v.lng) },
-          map
+          map,
+          icon: getMarkerIcon(v.status)
         });
         marker.vehicle = v;
         marker.addListener('click', () => {
