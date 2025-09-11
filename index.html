@@ -95,7 +95,7 @@
 
   <!-- Járműlista panel -->
   <div class="vehicle-panel">
-    <div class="vehicle-header">🚗 Járművek ▼</div>
+    <div class="vehicle-header"> Járművek ▼</div>
     <div class="vehicle-list" id="vehicle-list"></div>
   </div>
 
@@ -131,12 +131,12 @@
     function getMarkerIcon(status) {
       if (status === 'Áll') {
         return {
-          url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Stop_sign.svg/240px-Stop_sign.svg.png",
+          url: "https://upload.wikimedia.org/wikipedia/commons/f/f9/Stop.png",
           scaledSize: new google.maps.Size(32, 32)
         };
       }
       return {
-        url: "https://cdn-icons-png.flaticon.com/512/743/743131.png", // autó ikon
+        url: "https://svgsilh.com/svg/2386838.svg",
         scaledSize: new google.maps.Size(32, 32)
       };
     }
@@ -162,7 +162,7 @@
         const saved = await saveVehicle(vehicle);
         marker.vehicle = saved;
         marker.setIcon(getMarkerIcon(saved.status));
-        updateVehicleList(); // frissítjük a bal oldali listát
+        updateVehicleList();
         infowindow.close();
       };
 
