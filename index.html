@@ -117,12 +117,33 @@
 
     async function saveVehicle(vehicle) {
       if (!vehicle.id) {
-        const { data, error } = await supabase.from('vehicles').insert([vehicle]).select();
-        if (error) console.error(error);
+        const { data, error } = await supabase
+          .from('vehicles')
+          .insert([vehicle])
+          .select();
+        if (error) {
+          console.error(error);
+          alert("Hiba történt a jármű létrehozásakor.");
+          return null;
+        }
         return data[0];
       } else {
-        const { data, error } = await supabase.from('vehicles').update(vehicle).eq('id', vehicle.id).select();
-        if (error) console.error(error);
+        const { data, error } = await supabase
+          .from('vehicles')
+          .update({
+            name: vehicle.name,
+            status: vehicle.status,
+            notes: vehicle.notes,
+            lat: vehicle.lat,
+            lng: vehicle.lng
+          })
+          .eq('id', vehicle.id)
+          .select();
+        if (error) {
+          console.error(error);
+          alert("Hiba történt a jármű mentésekor.");
+          return null;
+        }
         return data[0];
       }
     }
@@ -163,7 +184,10 @@
         vehicle.name = div.querySelector('#name').value;
         vehicle.status = div.querySelector('#status').value;
         vehicle.notes = div.querySelector('#notes').value;
+
         const saved = await saveVehicle(vehicle);
+        if (!saved) return;
+
         marker.vehicle = saved;
         marker.setIcon(getMarkerIcon(saved.status));
         updateVehicleList();
