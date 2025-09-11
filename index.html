@@ -116,9 +116,15 @@
     }
 
     async function saveVehicle(vehicle) {
-      const { data, error } = await supabase.from('vehicles').upsert(vehicle).select();
-      if (error) console.error(error);
-      return data[0];
+      if (!vehicle.id) {
+        const { data, error } = await supabase.from('vehicles').insert([vehicle]).select();
+        if (error) console.error(error);
+        return data[0];
+      } else {
+        const { data, error } = await supabase.from('vehicles').update(vehicle).eq('id', vehicle.id).select();
+        if (error) console.error(error);
+        return data[0];
+      }
     }
 
     async function deleteVehicle(id) {
@@ -222,25 +228,27 @@
       updateVehicleList();
 
       map.addListener("click", async (e) => {
-        const newVehicle = {
-          name: 'Új jármű',
-          lat: e.latLng.lat(),
-          lng: e.latLng.lng(),
-          status: 'Áll'
-        };
-        const saved = await saveVehicle(newVehicle);
-        const marker = new google.maps.Marker({
-          position: { lat: saved.lat, lng: saved.lng },
-          map,
-          icon: getMarkerIcon(saved.status)
-        });
-        marker.vehicle = saved;
-        marker.addListener('click', () => {
-          infowindow.setContent(createPopupContent(saved, marker));
-          infowindow.open(map, marker);
-        });
-        markers.push(marker);
-        updateVehicleList();
+        if (confirm("Biztosan létrehozod az új járművet itt?")) {
+          const newVehicle = {
+            name: 'Új jármű',
+            lat: e.latLng.lat(),
+            lng: e.latLng.lng(),
+            status: 'Áll'
+          };
+          const saved = await saveVehicle(newVehicle);
+          const marker = new google.maps.Marker({
+            position: { lat: saved.lat, lng: saved.lng },
+            map,
+            icon: getMarkerIcon(saved.status)
+          });
+          marker.vehicle = saved;
+          marker.addListener('click', () => {
+            infowindow.setContent(createPopupContent(saved, marker));
+            infowindow.open(map, marker);
+          });
+          markers.push(marker);
+          updateVehicleList();
+        }
       });
     }
 
