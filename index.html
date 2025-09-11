@@ -41,11 +41,63 @@
     button.delete {
       background: #dc3545;
     }
+
+    /* --- Bal felső járműlista panel --- */
+    .vehicle-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      width: 220px;
+      font-family: sans-serif;
+      z-index: 5;
+    }
+
+    .vehicle-header {
+      background: #007bff;
+      color: white;
+      padding: 10px;
+      font-weight: bold;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .vehicle-list {
+      display: none;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .vehicle-item {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+      cursor: pointer;
+    }
+
+    .vehicle-item:hover {
+      background: #f0f0f0;
+    }
+
+    @media (max-width: 600px) {
+      .vehicle-panel {
+        width: 90%;
+        left: 5%;
+      }
+    }
   </style>
 </head>
 
 <body>
   <div id="map"></div>
+
+  <!-- Járműlista panel -->
+  <div class="vehicle-panel">
+    <div class="vehicle-header">🚗 Járművek ▼</div>
+    <div class="vehicle-list" id="vehicle-list"></div>
+  </div>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7cskYcCSi1Qwne3NZ-yN8MD0RI6WwXWQ"></script>
   <script type="module">
@@ -57,6 +109,7 @@
 
     let map;
     let infowindow = new google.maps.InfoWindow();
+    let markers = [];
 
     async function fetchVehicles() {
       const { data, error } = await supabase.from('vehicles').select('*');
@@ -76,18 +129,16 @@
     }
 
     function getMarkerIcon(status) {
-      // STOP tábla ha áll, autó ha mozog
       if (status === 'Áll') {
         return {
           url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Stop_sign.svg/240px-Stop_sign.svg.png",
           scaledSize: new google.maps.Size(32, 32)
         };
-      } else {
-        return {
-          url: "https://cdn-icons-png.flaticon.com/512/743/743131.png", // autó ikon
-          scaledSize: new google.maps.Size(32, 32)
-        };
       }
+      return {
+        url: "https://cdn-icons-png.flaticon.com/512/743/743131.png", // autó ikon
+        scaledSize: new google.maps.Size(32, 32)
+      };
     }
 
     function createPopupContent(vehicle, marker) {
@@ -104,27 +155,45 @@
         <button class="delete">Törlés</button>
       `;
 
-      // Mentés gomb
       div.querySelector('button').onclick = async () => {
         vehicle.name = div.querySelector('#name').value;
         vehicle.status = div.querySelector('#status').value;
         vehicle.notes = div.querySelector('#notes').value;
         const saved = await saveVehicle(vehicle);
         marker.vehicle = saved;
-        marker.setIcon(getMarkerIcon(saved.status)); // ikon frissítés mentés után
+        marker.setIcon(getMarkerIcon(saved.status));
+        updateVehicleList(); // frissítjük a bal oldali listát
         infowindow.close();
       };
 
-      // Törlés gomb
       div.querySelector('.delete').onclick = async () => {
         if (confirm("Biztosan törlöd a járművet?")) {
           await deleteVehicle(vehicle.id);
           marker.setMap(null);
+          markers = markers.filter(m => m !== marker);
+          updateVehicleList();
           infowindow.close();
         }
       };
 
       return div;
+    }
+
+    function updateVehicleList() {
+      const listDiv = document.getElementById('vehicle-list');
+      listDiv.innerHTML = '';
+      markers.forEach(marker => {
+        const v = marker.vehicle;
+        const item = document.createElement('div');
+        item.className = 'vehicle-item';
+        item.innerHTML = `<b>${v.name}</b><br><small>${v.status}</small>`;
+        item.onclick = () => {
+          map.panTo({ lat: parseFloat(v.lat), lng: parseFloat(v.lng) });
+          infowindow.setContent(createPopupContent(v, marker));
+          infowindow.open(map, marker);
+        };
+        listDiv.appendChild(item);
+      });
     }
 
     async function initMap() {
@@ -149,7 +218,10 @@
           infowindow.setContent(createPopupContent(v, marker));
           infowindow.open(map, marker);
         });
+        markers.push(marker);
       });
+
+      updateVehicleList();
 
       map.addListener("click", async (e) => {
         const newVehicle = {
@@ -169,8 +241,16 @@
           infowindow.setContent(createPopupContent(saved, marker));
           infowindow.open(map, marker);
         });
+        markers.push(marker);
+        updateVehicleList();
       });
     }
+
+    // Panel lenyitás/összecsukás
+    document.querySelector('.vehicle-header').addEventListener('click', () => {
+      const list = document.querySelector('.vehicle-list');
+      list.style.display = list.style.display === 'block' ? 'none' : 'block';
+    });
 
     window.onload = initMap;
   </script>
