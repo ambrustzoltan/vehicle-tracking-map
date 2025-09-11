@@ -76,10 +76,18 @@
     }
 
     function getMarkerIcon(status) {
+      // STOP tábla ha áll, autó ha mozog
       if (status === 'Áll') {
-        return "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Stop_sign.svg/240px-Stop_sign.svg.png";
+        return {
+          url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Stop_sign.svg/240px-Stop_sign.svg.png",
+          scaledSize: new google.maps.Size(32, 32)
+        };
+      } else {
+        return {
+          url: "https://cdn-icons-png.flaticon.com/512/743/743131.png", // autó ikon
+          scaledSize: new google.maps.Size(32, 32)
+        };
       }
-      return null; // default Google marker
     }
 
     function createPopupContent(vehicle, marker) {
@@ -88,10 +96,8 @@
       div.innerHTML = `
         <input id="name" value="${vehicle.name || ''}" placeholder="Jármű neve">
         <select id="status">
-          <option ${vehicle.status === 'Új' ? 'selected' : ''}>Új</option>
-          <option ${vehicle.status === 'Használatban' ? 'selected' : ''}>Használatban</option>
-          <option ${vehicle.status === 'Szervizben' ? 'selected' : ''}>Szervizben</option>
           <option ${vehicle.status === 'Áll' ? 'selected' : ''}>Áll</option>
+          <option ${vehicle.status === 'Mozgásban' ? 'selected' : ''}>Mozgásban</option>
         </select>
         <textarea id="notes" placeholder="Megjegyzés">${vehicle.notes || ''}</textarea>
         <button>Mentés</button>
@@ -105,7 +111,7 @@
         vehicle.notes = div.querySelector('#notes').value;
         const saved = await saveVehicle(vehicle);
         marker.vehicle = saved;
-        marker.setIcon(getMarkerIcon(saved.status));
+        marker.setIcon(getMarkerIcon(saved.status)); // ikon frissítés mentés után
         infowindow.close();
       };
 
@@ -150,12 +156,13 @@
           name: 'Új jármű',
           lat: e.latLng.lat(),
           lng: e.latLng.lng(),
-          status: 'Új'
+          status: 'Áll'
         };
         const saved = await saveVehicle(newVehicle);
         const marker = new google.maps.Marker({
           position: { lat: saved.lat, lng: saved.lng },
-          map
+          map,
+          icon: getMarkerIcon(saved.status)
         });
         marker.vehicle = saved;
         marker.addListener('click', () => {
