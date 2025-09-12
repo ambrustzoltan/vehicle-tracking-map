@@ -97,7 +97,7 @@
     <div class="vehicle-list" id="vehicle-list"></div>
   </div>
 
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7cskYcCSi1Qwne3NZ-yN8MD0RI6WwXWQ" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7cskYcCSi1Qwne3NZ-yN8MD0RI6WwXWQ"></script>
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -109,60 +109,50 @@
     let infowindow = new google.maps.InfoWindow();
     let markers = [];
 
-    // Vehicles load
     async function fetchVehicles() {
       const { data, error } = await supabase.from('vehicles').select('*');
-      if (error) {
-        console.error("Hiba a járművek betöltésekor:", error);
-        alert("Nem sikerült betölteni a járműveket. Ellenőrizd az internetkapcsolatot!");
-        return [];
-      }
+      if (error) console.error(error);
       return data || [];
     }
 
-    // Save Vehicle
     async function saveVehicle(vehicle) {
-      try {
-        if (!vehicle.id) {
-          const { data, error } = await supabase
-            .from('vehicles')
-            .insert([vehicle])
-            .select();
-          if (error) throw error;
-          return data[0];
-        } else {
-          const { data, error } = await supabase
-            .from('vehicles')
-            .update({
-              name: vehicle.name,
-              driver: vehicle.driver,
-              status: vehicle.status,
-              notes: vehicle.notes,
-              ...(vehicle.lat && { lat: vehicle.lat }),
-              ...(vehicle.lng && { lng: vehicle.lng })
-            })
-            .eq('id', vehicle.id)
-            .select();
-          if (error) throw error;
-          return data[0];
+      if (!vehicle.id) {
+        const { data, error } = await supabase
+          .from('vehicles')
+          .insert([vehicle])
+          .select();
+        if (error) {
+          console.error(error);
+          alert("Hiba történt a jármű létrehozásakor.");
+          return null;
         }
-      } catch (err) {
-        console.error("Hiba a jármű mentésekor:", err);
-        alert("Nem sikerült menteni a jármű adatait.");
-        return null;
+        return data[0];
+      } else {
+        const { data, error } = await supabase
+          .from('vehicles')
+          .update({
+            name: vehicle.name,
+            status: vehicle.status,
+            notes: vehicle.notes,
+            lat: vehicle.lat,
+            lng: vehicle.lng
+          })
+          .eq('id', vehicle.id)
+          .select();
+        if (error) {
+          console.error(error);
+          alert("Hiba történt a jármű mentésekor.");
+          return null;
+        }
+        return data[0];
       }
     }
 
-    // Delete Vehicle
     async function deleteVehicle(id) {
       const { error } = await supabase.from('vehicles').delete().eq('id', id);
-      if (error) {
-        console.error("Hiba a jármű törlésekor:", error);
-        alert("Nem sikerült törölni a járművet.");
-      }
+      if (error) console.error(error);
     }
 
-    // Marker Icons
     function getMarkerIcon(status) {
       if (status === 'Áll') {
         return {
@@ -176,13 +166,11 @@
       };
     }
 
-    // Show Vehicle PopUp
     function createPopupContent(vehicle, marker) {
       const div = document.createElement('div');
       div.className = 'popup';
       div.innerHTML = `
-        <input id="name" value="${vehicle.name || ''}" placeholder="Rendszám">
-        <input id="driver" value="${vehicle.driver || ''}" placeholder="Sofőr">
+        <input id="name" value="${vehicle.name || ''}" placeholder="Jármű neve">
         <select id="status">
           <option ${vehicle.status === 'Áll' ? 'selected' : ''}>Áll</option>
           <option ${vehicle.status === 'Mozgásban' ? 'selected' : ''}>Mozgásban</option>
@@ -194,7 +182,6 @@
 
       div.querySelector('button').onclick = async () => {
         vehicle.name = div.querySelector('#name').value;
-        vehicle.driver = div.querySelector('#driver').value;
         vehicle.status = div.querySelector('#status').value;
         vehicle.notes = div.querySelector('#notes').value;
 
@@ -204,10 +191,7 @@
         marker.vehicle = saved;
         marker.setIcon(getMarkerIcon(saved.status));
         updateVehicleList();
-
         infowindow.close();
-        infowindow.setContent(createPopupContent(saved, marker));
-        infowindow.open(map, marker);
       };
 
       div.querySelector('.delete').onclick = async () => {
@@ -223,18 +207,14 @@
       return div;
     }
 
-    // Update Vehicle List
     function updateVehicleList() {
       const listDiv = document.getElementById('vehicle-list');
       listDiv.innerHTML = '';
-
-      markers.sort((a, b) => (a.vehicle.name || '').localeCompare(b.vehicle.name || ''));
-
       markers.forEach(marker => {
         const v = marker.vehicle;
         const item = document.createElement('div');
         item.className = 'vehicle-item';
-        item.innerHTML = `<b>${v.name || 'Nincs név'}</b><br><small>${v.status}</small>`;
+        item.innerHTML = `<b>${v.name}</b><br><small>${v.status}</small>`;
         item.onclick = () => {
           map.panTo({ lat: parseFloat(v.lat), lng: parseFloat(v.lng) });
           infowindow.setContent(createPopupContent(v, marker));
@@ -244,13 +224,12 @@
       });
     }
 
-    // Map
     async function initMap() {
       map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 46.72292, lng: 25.60055 },
         zoom: 12,
         mapTypeControl: false,
-        zoomControl: true,
+        zoomControl: false,
         fullscreenControl: false
       });
 
@@ -275,13 +254,12 @@
       map.addListener("click", async (e) => {
         if (confirm("Biztosan létrehozod az új járművet itt?")) {
           const newVehicle = {
+            name: 'Új jármű',
             lat: e.latLng.lat(),
             lng: e.latLng.lng(),
             status: 'Áll'
           };
           const saved = await saveVehicle(newVehicle);
-          if (!saved) return;
-
           const marker = new google.maps.Marker({
             position: { lat: saved.lat, lng: saved.lng },
             map,
