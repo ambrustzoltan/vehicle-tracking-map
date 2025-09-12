@@ -132,6 +132,7 @@
           .from('vehicles')
           .update({
             name: vehicle.name,
+            driver: vehicle.driver,
             status: vehicle.status,
             notes: vehicle.notes,
             lat: vehicle.lat,
@@ -170,7 +171,8 @@
       const div = document.createElement('div');
       div.className = 'popup';
       div.innerHTML = `
-        <input id="name" value="${vehicle.name || ''}" placeholder="Jármű neve">
+        <input id="name" value="${vehicle.name || ''}" placeholder="Rendszám">
+        <input id="driver" value="${vehicle.driver || ''}" placeholder="Sofőr">
         <select id="status">
           <option ${vehicle.status === 'Áll' ? 'selected' : ''}>Áll</option>
           <option ${vehicle.status === 'Mozgásban' ? 'selected' : ''}>Mozgásban</option>
@@ -182,6 +184,7 @@
 
       div.querySelector('button').onclick = async () => {
         vehicle.name = div.querySelector('#name').value;
+        vehicle.driver = div.querySelector('#driver').value;
         vehicle.status = div.querySelector('#status').value;
         vehicle.notes = div.querySelector('#notes').value;
 
